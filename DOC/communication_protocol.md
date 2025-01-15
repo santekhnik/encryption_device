@@ -67,8 +67,37 @@ This command decrypts the data sent by the PC and returns the plain text data.
 - **Data:** `[0x89, 0x23, 0x7A, 0x56, 0x41]` (encrypted data)
 - **BCC:** `0x37` (calculated XOR)
 
+#### STM32 → PC
+- **Command:** `0x01`
+- **Size:** `0x05`
+- **Data:** `[0x89, 0x23, 0x7A, 0x56, 0x41]` (encrypted data)
+- **BCC:** `0x37` (calculated XOR)
+
 ---
 
+### Example 2: Decrypt
+#### PC → STM32
+- **Command:** `0x02`
+- **Size:** `0x05` (5 bytes of data)
+- **Data:** `[0x89, 0x23, 0x7A, 0x56, 0x41]` (encrypted data)
+- **BCC:** `0x37`
+
+#### STM32 → PC
+- **Command:** `0x02`
+- **Size:** `0x05`
+- **Data:** `[0xAB, 0xCD, 0xEF, 0x12, 0x34]` (decrypted data)
+- **BCC:** `0x98`
+
+---
+
+## Error Handling
+1. **Incorrect BCC:**
+   - If the BCC check fails, STM32 responds with:
+     - **Command:** `0xFF`
+     - **Size:** `0x00`
+     - **Data:** `None`
+     - **BCC:** `0xFF`
+2. **Timeouts:**
 
 
 
