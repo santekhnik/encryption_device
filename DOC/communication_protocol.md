@@ -98,6 +98,8 @@ This command decrypts the data sent by the PC and returns the plain text data.
      - **Data:** `None`
      - **BCC:** `0xFF`
 2. **Timeouts:**
+- If no response is received within a predefined timeout, the PC retries the command.
 
+---
 
 
