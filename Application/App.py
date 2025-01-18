@@ -1,9 +1,26 @@
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QWidget, QSpacerItem, QSizePolicy, QFileDialog, QGraphicsDropShadowEffect
-)
+import subprocess
+import sys
+
+# Перевірка та автоматичне встановлення необхідних бібліотек
+def install_libraries():
+    required_libraries = ['PyQt5', 'tkinter']
+    for library in required_libraries:
+        try:
+            __import__(library)
+        except ImportError:
+            print(f"{library} не знайдено. Встановлення...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", library])
+            print(f"{library} встановлено!")
+
+# Викликаємо функцію для установки бібліотек
+install_libraries()
+
+import os
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy, QFileDialog, QGraphicsDropShadowEffect
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QPainter
+from PyQt5.QtGui import QFont, QMovie
 import sys
 
 class MainWindow(QMainWindow):
@@ -127,10 +144,63 @@ class MainWindow(QMainWindow):
         button.setGraphicsEffect(shadow)
 
     def select_file(self):
-        # Відкриваємо діалог вибору файлу
-        file_name, _ = QFileDialog.getOpenFileName(self, "Select File")
-        if file_name:
-            print(f"File selected: {file_name}")  # Додати логіку для обробки файлу
+        """Функція для вибору файлу за допомогою Tkinter"""
+        root = tk.Tk()
+        root.withdraw()  # Сховати основне вікно Tkinter
+
+        # Відкриваємо діалогове вікно вибору файлу
+        file_path = filedialog.askopenfilename(
+            title="Виберіть файл",
+            filetypes=[("Всі файли", "*.*"), ("Текстові файли", "*.txt"), ("Зображення", "*.png;*.jpg;*.jpeg")]
+        )
+
+        if file_path:
+            print(f"File selected: {file_path}")  # Логіка обробки вибраного файлу
+            self.split_file_to_chunks(file_path)
+        else:
+            messagebox.showinfo("Інформація", "Файл не обрано.")
+
+    def split_file_to_chunks(self, file_path, chunk_size=255):
+        """Функція для поділу файлу на частини"""
+        try:
+            # Отримати розмір файлу
+            file_size = os.path.getsize(file_path)
+            
+            # Якщо файл 255 байт або менше, не ділити
+            if file_size <= chunk_size:
+                messagebox.showinfo("Інформація", f"Файл занадто малий для поділу (розмір: {file_size} байт). Ділити не будемо.")
+                return None  # Повертаємо None, якщо не потрібно ділити
+
+            # Відкриваємо файл у двійковому режимі
+            with open(file_path, "rb") as file:
+                base_name, ext = os.path.splitext(os.path.basename(file_path))  # Отримати ім'я файлу та розширення
+                output_dir = os.path.join(os.path.dirname(file_path), f"{base_name}_chunks")
+                os.makedirs(output_dir, exist_ok=True)  # Створити папку для фрагментів
+
+                chunk_index = 1
+                while True:
+                    # Читаємо файл по частинах
+                    chunk = file.read(chunk_size)
+                    if not chunk:  # Якщо більше немає даних
+                        break
+
+                    # Створити унікальне ім'я для фрагмента
+                    chunk_file_name = os.path.join(output_dir, f"{base_name}_part{chunk_index}{ext}")
+                    with open(chunk_file_name, "wb") as chunk_file:
+                        chunk_file.write(chunk)
+
+                    chunk_index += 1
+
+            # Якщо останній фрагмент менший за chunk_size, його також повертаємо
+            if len(chunk) > 0 and len(chunk) < chunk_size:
+                remainder_file_name = os.path.join(output_dir, f"{base_name}_part{chunk_index}{ext}")
+                with open(remainder_file_name, "wb") as remainder_file:
+                    remainder_file.write(chunk)
+
+            messagebox.showinfo("Успіх", f"Файл успішно розділено на частини. Фрагменти збережено в папці:\n{output_dir}")
+        
+        except Exception as e:
+            messagebox.showerror("Помилка", f"Сталася помилка при обробці файлу:\n{e}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
