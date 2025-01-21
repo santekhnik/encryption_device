@@ -207,3 +207,34 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
+    def assemble_file_from_chunks(chunks_folder, output_file):
+        chunks_folder = "path_to_chunks_folder"  # Заміни на реальний шлях до папки з фрагментами
+        output_file = "path_to_output_file"  # Задай ім'я вихідного файлу
+        assemble_file_from_chunks(chunks_folder, output_file)
+
+    """Функція для зворотного складання файлу з фрагментів.
+    :param chunks_folder: Шлях до папки, яка містить фрагменти файлу.
+    :param output_file: Шлях до зібраного файлу.
+    """
+    try:
+        # Отримуємо список всіх файлів у папці фрагментів, відсортованих за іменами
+        chunks = sorted(
+            [os.path.join(chunks_folder, f) for f in os.listdir(chunks_folder)],
+            key=lambda x: int(os.path.splitext(os.path.basename(x))[0].split("_part")[-1])
+        )
+        
+        # Перевірка, чи є фрагменти
+        if not chunks:
+            raise FileNotFoundError("У зазначеній папці немає файлів-фрагментів.")
+        
+        # Відкриваємо вихідний файл для запису
+        with open(output_file, "wb") as output:
+            for chunk_file in chunks:
+                # Читаємо дані з фрагмента і записуємо у вихідний файл
+                with open(chunk_file, "rb") as chunk:
+                    output.write(chunk.read())
+        
+        print(f"Файл успішно зібрано і збережено за адресою: {output_file}")
+    except Exception as e:
+        print(f"Сталася помилка при складанні файлу: {e}")
