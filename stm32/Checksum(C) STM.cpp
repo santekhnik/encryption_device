@@ -1,16 +1,10 @@
 #include <stdio.h>
 
 unsigned char calculate_bcc(const unsigned char* data, size_t length) {
-    /*
-     * Обчислює BCC (Block Check Character) для заданого блоку даних.
-     *
-     * data: Масив байтів
-     * length: Довжина масиву даних
-     * return: Однобайтове значення BCC
-     */
-    unsigned char bcc = 0x00; // Початкове значення BCC
+  
+    unsigned char bcc = 0x00; 
     for (size_t i = 0; i < length; i++) {
-        bcc ^= data[i]; // Виконуємо XOR з кожним байтом
+        bcc ^= data[i]; 
     }
     return bcc;
 }
