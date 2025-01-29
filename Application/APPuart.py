@@ -3,12 +3,12 @@ import sys
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy, QFileDialog, QGraphicsDropShadowEffect
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy, QGraphicsDropShadowEffect
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
-import serial  # For UART communication
+import serial  # Для UART комунікації
 
-# Ensure required libraries are installed
+# Переконатися, що необхідні бібліотеки встановлені
 def install_libraries():
     required_libraries = ['PyQt5', 'tkinter', 'pyserial']
     for library in required_libraries:
@@ -30,10 +30,10 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget(self)
         self.main_layout = QVBoxLayout(self.central_widget)
 
-        # Spacer for layout balance
+        # Спейсер для балансування макету
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        # Header label
+        # Заголовок
         global_logic_label = QLabel("GlobalLogic")
         global_logic_label.setAlignment(Qt.AlignCenter)
         global_logic_label.setFont(QFont("Verdana", 20, QFont.Bold))
@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         title_label.setStyleSheet("color: #333333;")
         self.main_layout.addWidget(title_label)
 
-        # Encrypt button
+        # Кнопка для шифрування
         encrypt_button = QPushButton("Encrypt")
         encrypt_button.setStyleSheet(""" 
             QPushButton {
@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self.add_shadow(encrypt_button)
         encrypt_button.clicked.connect(self.encrypt_file)
 
-        # Decrypt button
+        # Кнопка для дешифрування
         decrypt_button = QPushButton("Decrypt")
         decrypt_button.setStyleSheet(""" 
             QPushButton {
@@ -82,16 +82,16 @@ class MainWindow(QMainWindow):
         """)
         decrypt_button.setFont(QFont("Arial", 18, QFont.Bold))
         self.add_shadow(decrypt_button)
-        decrypt_button.clicked.connect(self.decrypt_files)
+        decrypt_button.clicked.connect(self.decrypt_file)
 
-        # Add buttons to layout
+        # Додати кнопки на макет
         self.main_layout.addWidget(encrypt_button)
         self.main_layout.addSpacing(20)
         self.main_layout.addWidget(decrypt_button)
 
         self.main_layout.addStretch()
 
-        # Footer
+        # Футер
         footer_layout = QHBoxLayout()
         copyright_label = QLabel("2025 Copyright GlobalLogic Inc. All rights reserved.")
         copyright_label.setStyleSheet("font-size: 14px; color: #666666; text-align: center;")
@@ -117,99 +117,82 @@ class MainWindow(QMainWindow):
         root.withdraw()
         file_path = filedialog.askopenfilename(title="Select file to encrypt")
         if file_path:
-            self.process_file(file_path, mode=1)  # Encryption mode
+            self.process_file(file_path, mode=1)  # Режим шифрування
         else:
             messagebox.showinfo("Information", "No file selected for encryption.")
 
-    def decrypt_files(self):
+    def decrypt_file(self):
         root = tk.Tk()
         root.withdraw()
-        folder_path = filedialog.askdirectory(title="Select folder with encrypted files")
-        if folder_path:
-            self.process_folder(folder_path, mode=2)  # Decryption mode
+        file_path = filedialog.askopenfilename(title="Select file to decrypt")
+        if file_path:
+            self.process_file(file_path, mode=2)  # Режим дешифрування
         else:
-            messagebox.showinfo("Information", "No folder selected for decryption.")
+            messagebox.showinfo("Information", "No file selected for decryption.")
 
     def process_file(self, file_path, mode):
         try:
             file_size = os.path.getsize(file_path)
             chunks = []
+            
+            # Читання файлу по 255 байт
             with open(file_path, "rb") as file:
-                while chunk := file.read(255):
+                while True:
+                    chunk = file.read(255)
+                    if not chunk:
+                        break
                     chunks.append(chunk)
 
-            # Initialize an empty bytearray for the final result
             result_data = bytearray()
 
-            # Create a new folder for saving processed files
+            # Створення папки для збереження оброблених файлів
             folder_name = os.path.join(os.path.dirname(file_path), "Processed_Files")
             os.makedirs(folder_name, exist_ok=True)
 
-            # Folder for received fragments
+            # Папка для отриманих фрагментів
             received_folder = os.path.join(os.path.dirname(file_path), "Received_Fragments")
             os.makedirs(received_folder, exist_ok=True)
 
+            # Папка для фрагментів до відправки
+            sending_folder = os.path.join(os.path.dirname(file_path), "Sending_Fragments")
+            os.makedirs(sending_folder, exist_ok=True)
+
+            # Відправка фрагментів через UART
             with serial.Serial('COM5', 9600, timeout=1) as ser:
                 for idx, chunk in enumerate(chunks):
-                    command = mode.to_bytes(1, 'big')
-                    size = len(chunk).to_bytes(1, 'big')
-                    bcc = command[0] ^ size[0] ^ sum(chunk) % 256
-                    packet = command + size + chunk + bytes([bcc])
+                    # Тепер ми не використовуємо контрольну суму, лише байти
+                    packet = chunk
                     ser.write(packet)
+                    ser.timeout = 0.5
 
-                    # Wait and read response
-                    response = ser.read(len(chunk))  # Assuming STM returns the same chunk size
-                    result_data.extend(response)  # Add the response to result_data
-
-                    # Save each fragment separately to the 'Received_Fragments' folder
-                    fragment_file = os.path.join(received_folder, f"fragment_{idx + 1}.bin")
+                    # Збереження фрагментів до відправки
+                    fragment_file = os.path.join(sending_folder, f"fragment_{idx + 1}.txt")
                     with open(fragment_file, "wb") as fragment_out:
+                        fragment_out.write(chunk)
+
+                    # Читання відповіді від STM
+                    response = ser.read(len(chunk))
+                    result_data.extend(response)
+
+                    # Збереження кожного отриманого фрагмента окремо в папці
+                    response_fragment_file = os.path.join(received_folder, f"fragment_{idx + 1}.txt")
+                    with open(response_fragment_file, "wb") as fragment_out:
                         fragment_out.write(response)
 
-            # After all fragments are received, save the complete file
-            output_file = os.path.join(folder_name, os.path.basename(file_path) + (".enc" if mode == 1 else ".dec"))
-            with open(output_file, "wb") as out_file:
-                out_file.write(result_data)
+            # Перевірка розміру результату перед збиранням
+            if len(result_data) != file_size:
+                messagebox.showerror("Error", "Received file size mismatch. The received data does not match the expected size.")
+                return
 
-            messagebox.showinfo("Success", f"File processed successfully. Output saved as {output_file}")
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
+            # Об'єднання всіх фрагментів в один файл
+            defrag_file_path = os.path.join(folder_name, os.path.basename(file_path) + (".enc" if mode == 1 else ".dec"))
+            with open(defrag_file_path, "wb") as defrag_file:
+                for idx in range(len(chunks)):
+                    fragment_file = os.path.join(received_folder, f"fragment_{idx + 1}.txt")
+                    with open(fragment_file, "rb") as fragment_in:
+                        defrag_file.write(fragment_in.read())
 
-    def process_folder(self, folder_path, mode):
-        try:
-            # Create a new folder for saving processed files
-            output_folder = os.path.join(folder_path, "Processed_Files")
-            os.makedirs(output_folder, exist_ok=True)
-
-            # Folder for received fragments
-            received_folder = os.path.join(folder_path, "Received_Fragments")
-            os.makedirs(received_folder, exist_ok=True)
-
-            files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-            with serial.Serial('COM5', 9600, timeout=1) as ser:
-                for file_path in files:
-                    with open(file_path, "rb") as file:
-                        data = file.read()
-                        command = mode.to_bytes(1, 'big')
-                        size = len(data).to_bytes(1, 'big')
-                        bcc = command[0] ^ size[0] ^ sum(data) % 256
-                        packet = command + size + data + bytes([bcc])
-                        ser.write(packet)
-
-                        # Wait and read response
-                        response = ser.read(len(data))  # Assuming STM returns the same data size
-
-                        # Save the processed data to the new folder
-                        output_file = os.path.join(output_folder, os.path.basename(file_path) + (".enc" if mode == 1 else ".dec"))
-                        with open(output_file, "wb") as out_file:
-                            out_file.write(response)
-
-                        # Save each fragment separately to the 'Received_Fragments' folder
-                        fragment_file = os.path.join(received_folder, os.path.basename(file_path) + ".frag")
-                        with open(fragment_file, "wb") as fragment_out:
-                            fragment_out.write(response)
-
-            messagebox.showinfo("Success", "Folder processed successfully.")
+            messagebox.showinfo("Success", f"File processed successfully. Output saved as {defrag_file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
