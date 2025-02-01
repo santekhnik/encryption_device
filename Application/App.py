@@ -1,56 +1,53 @@
 import subprocess
 import sys
+import os
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy, QGraphicsDropShadowEffect
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
+import serial  # Для UART комунікації
+import time  # Для затримок
 
-# Перевірка та автоматичне встановлення необхідних бібліотек
+# Переконатися, що необхідні бібліотеки встановлені
 def install_libraries():
-    required_libraries = ['PyQt5', 'tkinter']
+    required_libraries = ['PyQt5', 'tkinter', 'pyserial']
     for library in required_libraries:
         try:
             __import__(library)
         except ImportError:
-            print(f"{library} не знайдено. Встановлення...")
+            print(f"{library} not found. Installing...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", library])
-            print(f"{library} встановлено!")
+            print(f"{library} installed!")
 
-# Викликаємо функцію для установки бібліотек
 install_libraries()
 
-import os
-import tkinter as tk
-from tkinter import filedialog, messagebox
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QHBoxLayout, QWidget, QSpacerItem, QSizePolicy, QFileDialog, QGraphicsDropShadowEffect
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QMovie
-import sys
-
 class MainWindow(QMainWindow):
-    def __init__(self):  
+    def __init__(self):
         super().__init__()
         self.setWindowTitle("File Encryptor/Decryptor")
         self.setGeometry(600, 100, 600, 800)
 
-        # Створюємо основний віджет і вертикальне розташування
         self.central_widget = QWidget(self)
         self.main_layout = QVBoxLayout(self.central_widget)
 
-        # Додаємо вертикальний простір на початку, щоб змістити все вниз
-        self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))  # Spacer added at the top
-
-        # Додаємо лейбл для GlobalLogic перед основним заголовком
-        global_logic_label = QLabel("GlobalLogic")
-        global_logic_label.setAlignment(Qt.AlignCenter)
-        global_logic_label.setFont(QFont("Verdana", 20, QFont.Bold))  # Set font to Verdana, size 20
-        global_logic_label.setStyleSheet("color: #007bff;")  # Set text color to blue
-        self.main_layout.addWidget(global_logic_label)
+        # Спейсер для балансування макету
+        self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         # Заголовок
+        global_logic_label = QLabel("GlobalLogic")
+        global_logic_label.setAlignment(Qt.AlignCenter)
+        global_logic_label.setFont(QFont("Verdana", 20, QFont.Bold))
+        global_logic_label.setStyleSheet("color: #007bff;")
+        self.main_layout.addWidget(global_logic_label)
+
         title_label = QLabel("File Encryptor/Decryptor")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Verdana", 26, QFont.Bold))  # Changed font to Verdana
+        title_label.setFont(QFont("Verdana", 26, QFont.Bold))
         title_label.setStyleSheet("color: #333333;")
         self.main_layout.addWidget(title_label)
 
-        # Додаємо кнопки Encrypt та Decrypt
+        # Кнопка для шифрування
         encrypt_button = QPushButton("Encrypt")
         encrypt_button.setStyleSheet(""" 
             QPushButton {
@@ -65,11 +62,13 @@ class MainWindow(QMainWindow):
                 background-color: #555555;
             }
         """)
-        encrypt_button.setFont(QFont("Arial", 18, QFont.Bold))  # Make text bold for Encrypt button
+        encrypt_button.setFont(QFont("Arial", 18, QFont.Bold))
         self.add_shadow(encrypt_button)
+        encrypt_button.clicked.connect(self.encrypt_file)
 
+        # Кнопка для дешифрування
         decrypt_button = QPushButton("Decrypt")
-        decrypt_button.setStyleSheet("""
+        decrypt_button.setStyleSheet(""" 
             QPushButton {
                 font-size: 20px;
                 padding: 15px;
@@ -82,48 +81,21 @@ class MainWindow(QMainWindow):
                 background-color: #0056b3;
             }
         """)
-        decrypt_button.setFont(QFont("Arial", 18, QFont.Bold))  # Make text bold for Decrypt button
+        decrypt_button.setFont(QFont("Arial", 18, QFont.Bold))
         self.add_shadow(decrypt_button)
+        decrypt_button.clicked.connect(self.decrypt_file)
 
-        # Додаємо кнопки до макету
+        # Додати кнопки на макет
         self.main_layout.addWidget(encrypt_button)
         self.main_layout.addSpacing(20)
         self.main_layout.addWidget(decrypt_button)
 
-        # Додаємо простір для кнопки "Select File" внизу
         self.main_layout.addStretch()
 
-        # Додаємо кнопку для вибору файлу з сірим кольором
-        file_button = QPushButton("Select File")
-        file_button.setStyleSheet("""
-            QPushButton {
-                font-size: 20px;
-                padding: 15px;
-                height: 50px;
-                background-color: #808080;
-                color: white; 
-                border-radius: 40px;
-            }
-            QPushButton:hover {
-                background-color: #A9A9A9;
-            }
-        """)
-        file_button.setFont(QFont("Arial", 18, QFont.Bold))
-        self.add_shadow(file_button)
-        file_button.clicked.connect(self.select_file)
-
-        # Додаємо кнопку до макету внизу
-        self.main_layout.addWidget(file_button)
-
-        # Додаємо роздільник для простору
-        self.main_layout.addStretch()
-
-        # Додаємо підпис у нижній частині
+        # Футер
         footer_layout = QHBoxLayout()
         copyright_label = QLabel("2025 Copyright GlobalLogic Inc. All rights reserved.")
-        copyright_label.setStyleSheet(
-            "font-size: 14px; color: #666666; text-align: center;"
-        )
+        copyright_label.setStyleSheet("font-size: 14px; color: #666666; text-align: center;")
         copyright_label.setAlignment(Qt.AlignCenter)
         copyright_label.setFont(QFont("Verdana", 12))
         footer_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
@@ -132,109 +104,121 @@ class MainWindow(QMainWindow):
 
         self.main_layout.addLayout(footer_layout)
 
-        # Призначаємо центральний віджет
         self.setCentralWidget(self.central_widget)
 
+        self.mode = None  # Це буде визначати чи шифруємо чи дешифруємо
+
     def add_shadow(self, button):
-        """Функція для додавання тіні до кнопки."""
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(8)
         shadow.setOffset(2, 2)
         shadow.setColor(Qt.black)
         button.setGraphicsEffect(shadow)
 
-    def select_file(self):
-        """Функція для вибору файлу за допомогою Tkinter"""
+    def encrypt_file(self):
+        self.mode = 'E'  # Встановлюємо режим шифрування
+        self.select_file_and_process()
+
+    def decrypt_file(self):
+        self.mode = 'D'  # Встановлюємо режим дешифрування
+        self.select_file_and_process()
+
+    def select_file_and_process(self):
         root = tk.Tk()
-        root.withdraw()  # Сховати основне вікно Tkinter
-
-        # Відкриваємо діалогове вікно вибору файлу
-        file_path = filedialog.askopenfilename(
-            title="Виберіть файл",
-            filetypes=[("Всі файли", "*.*"), ("Текстові файли", "*.txt"), ("Зображення", "*.png;*.jpg;*.jpeg")]
-        )
-
+        root.withdraw()
+        file_path = filedialog.askopenfilename(title="Select file")
         if file_path:
-            print(f"File selected: {file_path}")  # Логіка обробки вибраного файлу
-            self.split_file_to_chunks(file_path)
+            self.process_file(file_path, self.mode)  # Викликаємо обробку залежно від обраного режиму
         else:
-            messagebox.showinfo("Інформація", "Файл не обрано.")
+            messagebox.showinfo("Information", "No file selected.")
 
-    def split_file_to_chunks(self, file_path, chunk_size=255):
-        """Функція для поділу файлу на частини"""
-        try:
-            # Отримати розмір файлу
-            file_size = os.path.getsize(file_path)
-            
-            # Якщо файл 255 байт або менше, не ділити
-            if file_size <= chunk_size:
-                messagebox.showinfo("Інформація", f"Файл занадто малий для поділу (розмір: {file_size} байт). Ділити не будемо.")
-                return None  # Повертаємо None, якщо не потрібно ділити
-
-            # Відкриваємо файл у двійковому режимі
-            with open(file_path, "rb") as file:
-                base_name, ext = os.path.splitext(os.path.basename(file_path))  # Отримати ім'я файлу та розширення
-                output_dir = os.path.join(os.path.dirname(file_path), f"{base_name}_chunks")
-                os.makedirs(output_dir, exist_ok=True)  # Створити папку для фрагментів
-
-                chunk_index = 1
-                while True:
-                    # Читаємо файл по частинах
-                    chunk = file.read(chunk_size)
-                    if not chunk:  # Якщо більше немає даних
-                        break
-
-                    # Створити унікальне ім'я для фрагмента
-                    chunk_file_name = os.path.join(output_dir, f"{base_name}_part{chunk_index}{ext}")
-                    with open(chunk_file_name, "wb") as chunk_file:
-                        chunk_file.write(chunk)
-
-                    chunk_index += 1
-
-            # Якщо останній фрагмент менший за chunk_size, його також повертаємо
-            if len(chunk) > 0 and len(chunk) < chunk_size:
-                remainder_file_name = os.path.join(output_dir, f"{base_name}_part{chunk_index}{ext}")
-                with open(remainder_file_name, "wb") as remainder_file:
-                    remainder_file.write(chunk)
-
-            messagebox.showinfo("Успіх", f"Файл успішно розділено на частини. Фрагменти збережено в папці:\n{output_dir}")
+    def add_command_and_crc(self, chunk):
+        # Додавання команди до першого байта: 'E' для шифрування (0x45), 'D' для дешифрування (0x44)
+       if self.mode == 'E':
+            command = bytearray([0x45])
+       elif self.mode == 'D':
+            command = bytearray([0x44])
+       else:
+            raise ValueError("Невідомий режим: потрібно задати 'E' або 'D'.")
         
+
+        # Обчислення CRC (BCC) для всіх байтів, включаючи команду
+       checksum = command[0]
+       for byte in chunk:
+            checksum ^= byte  # XOR кожного байта з попередньою чексу
+
+        # Створення нового фрагмента з командою та чексу
+       new_chunk = bytearray([command[0], checksum]) + chunk
+       return new_chunk
+
+    def process_file(self, file_path, mode):
+        try:
+            # Читання файлу як байти
+            with open(file_path, "rb") as file:
+                file_data = file.read()
+
+            # Розбиваємо файл на фрагменти
+            chunks = [file_data[i:i+256] for i in range(0, len(file_data), 256)]  # Розбиваємо на фрагменти
+
+            result_data = bytearray()
+
+            # Створення папки для збереження оброблених файлів
+            folder_name = os.path.join(os.path.dirname(file_path), "Processed_Files")
+            os.makedirs(folder_name, exist_ok=True)
+
+            received_folder = os.path.join(os.path.dirname(file_path), "Received_Fragments")
+            os.makedirs(received_folder, exist_ok=True)
+
+            sending_folder = os.path.join(os.path.dirname(file_path), "Sending_Fragments")
+            os.makedirs(sending_folder, exist_ok=True)
+
+            # Відкриття порту для UART
+            with serial.Serial('COM5', 9600, timeout=1) as ser:
+                for idx, chunk in enumerate(chunks):
+                    # Додаємо команду та чексу до фрагмента
+                    chunk_with_command_and_crc = self.add_command_and_crc(chunk)
+
+                    # Відправка фрагмента як масиву байтів
+                    ser.write(chunk_with_command_and_crc)
+                    ser.timeout = 2
+
+                    # Збереження фрагментів до відправки
+                    fragment_file = os.path.join(sending_folder, f"fragment_{idx + 1}.bin")
+                    with open(fragment_file, "wb") as fragment_out:
+                        fragment_out.write(chunk_with_command_and_crc)
+
+                    # Читання відповіді від STM
+                    response = ser.read(len(chunk_with_command_and_crc))
+                    result_data.extend(response)
+                    ser.timeout = 2
+                    
+                    # Збереження отриманого фрагмента
+                    response_fragment_file = os.path.join(received_folder, f"fragment_{idx + 1}.bin")
+                    with open(response_fragment_file, "wb") as fragment_out:
+                        fragment_out.write(response)
+
+                    # Затримка між відправленням і отриманням фрагментів
+                    time.sleep(1)  # Затримка 0.5 секунди (можна налаштувати)
+
+            # Об'єднання всіх фрагментів в один файл
+            defrag_file_path = os.path.join(folder_name, os.path.basename(file_path))
+            with open(defrag_file_path, "wb") as defrag_file:
+                for idx in range(len(chunks)):
+                    fragment_file = os.path.join(received_folder, f"fragment_{idx + 1}.bin")
+                    with open(fragment_file, "rb") as fragment_in:
+                        defrag_file.write(fragment_in.read())
+
+            # Збереження отриманого файлу
+            with open(defrag_file_path, "wb") as final_file:
+                final_file.write(result_data)
+
+            messagebox.showinfo("Success", f"File processed successfully. Output saved as {defrag_file_path}")
         except Exception as e:
-            messagebox.showerror("Помилка", f"Сталася помилка при обробці файлу:\n{e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
-
-    def assemble_file_from_chunks(chunks_folder, output_file):
-        chunks_folder = "path_to_chunks_folder"  # Заміни на реальний шлях до папки з фрагментами
-        output_file = "path_to_output_file"  # Задай ім'я вихідного файлу
-        assemble_file_from_chunks(chunks_folder, output_file)
-
-    """Функція для зворотного складання файлу з фрагментів.
-    :param chunks_folder: Шлях до папки, яка містить фрагменти файлу.
-    :param output_file: Шлях до зібраного файлу.
-    """
-    try:
-        # Отримуємо список всіх файлів у папці фрагментів, відсортованих за іменами
-        chunks = sorted(
-            [os.path.join(chunks_folder, f) for f in os.listdir(chunks_folder)],
-            key=lambda x: int(os.path.splitext(os.path.basename(x))[0].split("_part")[-1])
-        )
-        
-        # Перевірка, чи є фрагменти
-        if not chunks:
-            raise FileNotFoundError("У зазначеній папці немає файлів-фрагментів.")
-        
-        # Відкриваємо вихідний файл для запису
-        with open(output_file, "wb") as output:
-            for chunk_file in chunks:
-                # Читаємо дані з фрагмента і записуємо у вихідний файл
-                with open(chunk_file, "rb") as chunk:
-                    output.write(chunk.read())
-        
-        print(f"Файл успішно зібрано і збережено за адресою: {output_file}")
-    except Exception as e:
-        print(f"Сталася помилка при складанні файлу: {e}")
