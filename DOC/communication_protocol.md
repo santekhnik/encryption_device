@@ -62,7 +62,7 @@ This command decrypts the data sent by the PC and returns the plain text data.
 
 ### Example 1: Encrypt
 #### PC → STM32
-- **Command:** `0x01`
+- **Command:** `0x45`
 - **Size:** `0x05`
 - **Data:** `[0x89, 0x23, 0x7A, 0x56, 0x41]` (encrypted data)
 - **BCC:** `0x37` (calculated XOR)
@@ -77,7 +77,7 @@ This command decrypts the data sent by the PC and returns the plain text data.
 
 ### Example 2: Decrypt
 #### PC → STM32
-- **Command:** `0x02`
+- **Command:** `0x44`
 - **Size:** `0x05` (5 bytes of data)
 - **Data:** `[0x89, 0x23, 0x7A, 0x56, 0x41]` (encrypted data)
 - **BCC:** `0x37`
